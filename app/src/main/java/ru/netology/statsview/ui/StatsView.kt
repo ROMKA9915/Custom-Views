@@ -1,5 +1,6 @@
 package ru.netology.statsview.ui
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -7,6 +8,7 @@ import android.graphics.PointF
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.LinearInterpolator
 import androidx.core.content.withStyledAttributes
 import ru.netology.statsview.R
 import ru.netology.statsview.utils.AndroidUtils
@@ -30,16 +32,22 @@ class StatsView @JvmOverloads constructor(
     private var lineWidth = AndroidUtils.dp(context, 5)
     private var colors = emptyList<Int>()
 
+    // Анимационные параметры
+    private var rotationProgress = 0f // от 0 до 1
+    private var fillProgress = 0f // от 0 до 1
+    private var rotationAnimator: ValueAnimator? = null
+    private var fillAnimator: ValueAnimator? = null
+
     init {
         context.withStyledAttributes(attributeSet, R.styleable.StatsView) {
             textSize = getDimension(R.styleable.StatsView_textSize, textSize)
             lineWidth = getDimension(R.styleable.StatsView_lineWidth, lineWidth.toFloat()).toInt()
 
             colors = listOf(
-                getColor(R.styleable.StatsView_color1, generateRandomColor()),
-                getColor(R.styleable.StatsView_color2, generateRandomColor()),
-                getColor(R.styleable.StatsView_color3, generateRandomColor()),
-                getColor(R.styleable.StatsView_color4, generateRandomColor()),
+                getColor(R.styleable.StatsView_colors1, generateRandomColor()),
+                getColor(R.styleable.StatsView_colors2, generateRandomColor()),
+                getColor(R.styleable.StatsView_colors3, generateRandomColor()),
+                getColor(R.styleable.StatsView_colors4, generateRandomColor()),
             )
         }
     }
@@ -48,6 +56,10 @@ class StatsView @JvmOverloads constructor(
         set(value) {
             field = value
             calculateProportions()
+            // Сбрасываем анимацию при новых данных
+            rotationProgress = 0f
+            fillProgress = 0f
+            startAnimation()
             invalidate()
         }
 
@@ -104,31 +116,93 @@ class StatsView @JvmOverloads constructor(
             return
         }
 
-        var startAngle = -90F
+        // Рисуем линии с поворотом
+        var startAngle = -90F + (rotationProgress * 360f ) // Добавляем поворот к начальному углу
         val firstColor = colors.getOrElse(0) { generateRandomColor() }
+
         proportions.forEachIndexed { index, proportion ->
-            val angle = proportion * 360F
+            // Применяем прогресс заполнения к углу сегмента
+            val fullAngle = proportion * 360F
+            val animatedAngle = fullAngle * fillProgress
+
             paint.color = colors.getOrElse(index) { generateRandomColor() }
-            canvas.drawArc(oval, startAngle, angle, false, paint)
-            startAngle += angle
+            canvas.drawArc(oval, startAngle, animatedAngle, false, paint)
+            startAngle += fullAngle // Используем полный угол для позиционирования
         }
 
-        val startRad = Math.toRadians(-90.0)
-        val startX = center.x + radius * cos(startRad).toFloat()
-        val startY = center.y + radius * sin(startRad).toFloat()
+        // Рисуем точку только если есть прогресс анимации
+        if (fillProgress > 0) {
+            val pointAngle = -90F + (rotationProgress * 360f ) // Точка тоже вращается
+            val startRad = Math.toRadians(pointAngle.toDouble())
+            val startX = center.x + radius * cos(startRad).toFloat()
+            val startY = center.y + radius * sin(startRad).toFloat()
 
-        val originalStyle = paint.style
-        paint.style = Paint.Style.FILL
-        paint.color = firstColor
-        canvas.drawCircle(startX, startY, lineWidth / 2f, paint)
-        paint.style = originalStyle
+            val originalStyle = paint.style
+            paint.style = Paint.Style.FILL
+            paint.color = firstColor
+            canvas.drawCircle(startX, startY, lineWidth / 2f, paint)
+            paint.style = originalStyle
+        }
 
+        // Текст рисуется всегда без поворота
         canvas.drawText(
             "%.2f%%".format(proportions.sum() * 100),
             center.x,
             center.y + textPaint.textSize / 4,
             textPaint
         )
+    }
+
+    fun onTextDraw(canvas: Canvas) {
+        canvas.drawText(
+            "%.2f%%".format(proportions.sum() * 100),
+            center.x,
+            center.y + textPaint.textSize / 4,
+            textPaint
+        )
+    }
+
+    private fun startAnimation() {
+        // Останавливаем предыдущие анимации
+        rotationAnimator?.cancel()
+        fillAnimator?.cancel()
+
+        // Анимация поворота - 1 полный оборот за 2 секунды
+        rotationAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 2000L
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                rotationProgress = animator.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+
+        // Анимация заполнения - постепенное появление линий
+        fillAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1500L
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                fillProgress = animator.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    // Метод для остановки анимации
+    fun stopAnimation() {
+        rotationAnimator?.cancel()
+        fillAnimator?.cancel()
+        rotationProgress = 0f
+        fillProgress = 1f
+        invalidate()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        rotationAnimator?.cancel()
+        fillAnimator?.cancel()
     }
 
     private fun generateRandomColor() = Random.nextInt(0xFF000000.toInt(), 0xFFFFFFFF.toInt())
