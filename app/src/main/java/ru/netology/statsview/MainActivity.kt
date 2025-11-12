@@ -32,37 +32,6 @@ class MainActivity : AppCompatActivity() {
             0.25F,
             0.25F,
         )
-
-        val textView = findViewById<TextView>(R.id.label)
-
-        view.animate()
-            .rotation(360F)
-            .setInterpolator(LinearInterpolator())
-            .setStartDelay(500)
-            .setDuration(500)
-            .start()
-
-
-
-//        view.startAnimation(
-//            AnimationUtils.loadAnimation(this, R.anim.animation).apply {
-//                setAnimationListener(object: Animation.AnimationListener{
-//                    override fun onAnimationEnd(p0: Animation?) {
-//                        textView.setText("onAnimationEnd")
-//
-//                    }
-//
-//                    override fun onAnimationRepeat(p0: Animation?) {
-//                        textView.setText("onAnimationRepeat")
-//                    }
-//
-//                    override fun onAnimationStart(p0: Animation?) {
-//                        textView.setText("onAnimationStart")
-//                    }
-//
-//                })
-//            }
-//        )
     }
 
 }

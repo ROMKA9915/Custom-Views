@@ -146,16 +146,7 @@ class StatsView @JvmOverloads constructor(
 
         // Текст рисуется всегда без поворота
         canvas.drawText(
-            "%.2f%%".format(proportions.sum() * 100),
-            center.x,
-            center.y + textPaint.textSize / 4,
-            textPaint
-        )
-    }
-
-    fun onTextDraw(canvas: Canvas) {
-        canvas.drawText(
-            "%.2f%%".format(proportions.sum() * 100),
+            "%.2f%%".format(fillProgress * 100),
             center.x,
             center.y + textPaint.textSize / 4,
             textPaint
